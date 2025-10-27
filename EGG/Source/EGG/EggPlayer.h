@@ -1,14 +1,13 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "InputActionValue.h"
-#include "NiagaraSystem.h" 
-
+#include "NiagaraSystem.h"
+#include "NiagaraComponent.h"
 #include "Components/SphereComponent.h"
-#include "EggPlayer.generated.h" 
+#include "Components/SceneComponent.h"
+#include "EggPlayer.generated.h"
 
 class UStaticMeshComponent;
 class USpringArmComponent;
@@ -23,94 +22,105 @@ class EGG_API AEggPlayer : public APawn
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this pawn's properties
 	AEggPlayer();
 
-
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	// Hit Event‚ğBinding‚·‚éŠÖ”
+	virtual void Tick(float DeltaTime) override;
+
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, class AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 
-	/** Ball‚ğControl‚·‚é */
+	/** Ballã‚’Controlã™ã‚‹ */
 	void ControlBall(const FInputActionValue& Value);
 
-	/** ‹“_‚ğ‘€ì‚·‚é */
+	/** è¦–ç‚¹ã‚’æ“ä½œã™ã‚‹ */
 	void Look(const FInputActionValue& Value);
 
-	// ƒWƒƒƒ“ƒv‚·‚é
+	/** ã‚¸ãƒ£ãƒ³ãƒ—ã™ã‚‹ */
 	void Jump(const FInputActionValue& Value);
-	
-public:
-	void OnGoalReached(); // ƒS[ƒ‹‚ÉŒÄ‚Î‚ê‚éŠÖ”
 
 public:
-	// Called to bind functionality to input
+	void OnGoalReached();
+
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+
+
 private:
-	/** Character—p‚ÌStaticMesh : Sphere */
-	UPROPERTY(VisibleAnywhere, Category = Character, meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UStaticMeshComponent> Sphere;
+	/** ã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒ¼ã®çƒä½“ãƒ¡ãƒƒã‚·ãƒ¥ */
+	UPROPERTY(VisibleAnywhere, Category = Character)
+	UStaticMeshComponent* Sphere;
 
-	/** Camera‚ğ”z’u‚·‚é‚½‚ß‚ÌSpringArm */
-	UPROPERTY(VisibleAnywhere, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<USpringArmComponent> SpringArm;
+	/** ã‚«ãƒ¡ãƒ©é–¢ä¿‚ */
+	UPROPERTY(VisibleAnywhere, Category = Camera)
+	USpringArmComponent* SpringArm;
 
-	/** SpringArm‚Ìæ’[‚É”z’u‚·‚éƒJƒƒ‰ */
-	UPROPERTY(VisibleAnywhere, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UCameraComponent> Camera;
+	UPROPERTY(VisibleAnywhere, Category = Camera)
+	UCameraComponent* Camera;
 
-	/** MappingContext */
-	UPROPERTY(EditAnywhere, Category = Input, meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputMappingContext> DefaultMappingContext;
-
-	/** Control Input Action */
-	UPROPERTY(EditAnywhere, Category = Input, meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> ControlAction;
-
-	/** Look Input Action */
-	UPROPERTY(EditAnywhere, Category = Input, meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> LookAction;
-
-	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, Category = Input, meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> JumpAction;
-
-	/** ƒVƒtƒg“ü—Íi‰Š‚ğo‚·j */
+	/** å…¥åŠ›é–¢é€£ */
 	UPROPERTY(EditAnywhere, Category = Input)
-	TObjectPtr<UInputAction> BoostAction;
+	UInputMappingContext* DefaultMappingContext;
 
-	/** ‰Š‚ÌNiagaraƒGƒtƒFƒNƒg */
-	UPROPERTY(EditAnywhere, Category = Effect)
-	UNiagaraSystem* BoostEffect;
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* ControlAction;
 
-	/** ‰Š‚Ì“–‚½‚è”»’è—p Sphere */
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* LookAction;
+
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* JumpAction;
+
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* BoostAction;
+
+	/** ç‚ã®ç™ºç”Ÿä½ç½®ã‚’å›ºå®šã™ã‚‹ãŸã‚ã®ãƒãƒ¼ãƒ‰ */
+	UPROPERTY(VisibleAnywhere, Category = Effect)
+	USceneComponent* FireSpawnPoint;
+
+	/** ç‚ã®å½“ãŸã‚Šåˆ¤å®šï¼ˆSphereï¼‰ */
 	UPROPERTY(VisibleAnywhere, Category = Effect)
 	USphereComponent* FireCollision;
 
-	/** ‰Š‚É“–‚½‚Á‚½ƒIƒuƒWƒFƒNƒg‚ğÁ‚·ŠÖ” */
+	/** ç‚ã‚¨ãƒ•ã‚§ã‚¯ãƒˆï¼ˆNiagaraï¼‰ */
+	UPROPERTY(EditAnywhere, Category = Effect)
+	UNiagaraSystem* BoostEffect;
+
+	/** å®Ÿéš›ã«å‡ºã—ã¦ã„ã‚‹ã‚¨ãƒ•ã‚§ã‚¯ãƒˆã®å‚ç…§ */
+	UPROPERTY()
+	UNiagaraComponent* ActiveBoostEffect = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float GroundCheckDistance = 50.0f; // è¶³å…ƒã‹ã‚‰ã®ãƒã‚§ãƒƒã‚¯è·é›¢
+
+	// åœ°é¢ã«è§¦ã‚Œã¦ã„ã‚‹ã‹ã©ã†ã‹
+	bool bIsGrounded = false;
+
+	/** ç‚ãŒå‡ºã¦ã‚‹é–“ã¯ true */
+	bool bIsBoosting = false;
+
+	/** 3ç§’å¾Œã«æ¶ˆã™ãŸã‚ã®ã‚¿ã‚¤ãƒãƒ¼ */
+	FTimerHandle BoostTimerHandle;
+
+	/** ç‚ãŒå½“ãŸã£ãŸã¨ãã®å‡¦ç† */
 	UFUNCTION()
 	void OnFireOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
 		bool bFromSweep, const FHitResult& SweepResult);
 
-	/** ‰Š‚ğo‚·ŠÖ” */
+	/** ç‚ã‚’å‡ºã™é–¢æ•° */
 	void Boost(const FInputActionValue& Value);
 
+	/** ç‚ã‚’æ­¢ã‚ã‚‹é–¢æ•° */
+	void StopBoost();
+
+	/** ã‚´ãƒ¼ãƒ«é–¢é€£ */
 	bool bIsGoalReached = false;
 
-	// ‘¬“x
+	/** å„ç¨®è¨­å®šå€¤ */
 	float Speed = 200.0f;
-
-	// ‘Ì—Í
 	float Health = 100.0f;
-
-	// ƒWƒƒƒ“ƒv‚É‰Á‚¦‚é—Í
 	float JumpImpulse = 1000.0f;
-
-	// ƒWƒƒƒ“ƒv‚ª‚Å‚«‚é‚©”»’è‚·‚éƒtƒ‰ƒO
 	bool CanJump = false;
 };

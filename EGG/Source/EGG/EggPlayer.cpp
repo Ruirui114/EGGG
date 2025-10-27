@@ -1,11 +1,9 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
-#include "EggPlayer.h"
+ï»¿#include "EggPlayer.h"
 
 #include "Blueprint/UserWidget.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "NiagaraComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
@@ -18,71 +16,82 @@
 // Sets default values
 AEggPlayer::AEggPlayer()
 {
+	PrimaryActorTick.bCanEverTick = true;
 
-	// StaticMeshComponent‚ğ’Ç‰Á‚µARootComponent‚Éİ’è‚·‚é
-	Sphere = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
+	Sphere = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Sphere"));
 	RootComponent = Sphere;
 
-	// StaticMesh‚ğLaod‚µ‚ÄStaticMeshComponent‚ÌStaticMesh‚Éİ’è‚·‚é
+	// StaticMeshã‚’Laodã—ã¦StaticMeshComponentã®StaticMeshã«è¨­å®šã™ã‚‹
 	UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere"));
 
-	// StaticMesh‚ğStaticMeshComponent‚Éİ’è‚·‚é
+	// StaticMeshã‚’StaticMeshComponentã«è¨­å®šã™ã‚‹
 	Sphere->SetStaticMesh(Mesh);
 
-	// Material‚ğStaticMesh‚Éİ’è‚·‚é
+	// Materialã‚’StaticMeshã«è¨­å®šã™ã‚‹
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial"));
 
-	// Material‚ğStaticMeshComponent‚Éİ’è‚·‚é
+	// Materialã‚’StaticMeshComponentã«è¨­å®šã™ã‚‹
 	Sphere->SetMaterial(0, Material);
 
-	// Simulate Physics‚ğ—LŒø‚É‚·‚é
+	// Simulate Physicsã‚’æœ‰åŠ¹ã«ã™ã‚‹
 	Sphere->SetSimulatePhysics(true);
 
-	// Hit Event‚ğ—LŒø‚É‚·‚é
+	// Hit Eventã‚’æœ‰åŠ¹ã«ã™ã‚‹
 	Sphere->BodyInstance.bNotifyRigidBodyCollision = true;
 
-	// SpringArm‚ğ’Ç‰Á‚·‚é
+	
+	UPhysicalMaterial* PhysMat = NewObject<UPhysicalMaterial>();
+	PhysMat->Restitution = 0.0f;  // ãƒã‚¦ãƒ³ãƒ‰ç„¡åŠ¹
+	PhysMat->Friction = 0.8f;     // å¿…è¦ã«å¿œã˜ã¦æ‘©æ“¦
+	Sphere->SetPhysMaterialOverride(PhysMat);
+
+	// SpringArmã‚’è¿½åŠ ã™ã‚‹
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComponent"));
 	SpringArm->SetupAttachment(RootComponent);
 
-	// Spring Arm‚Ì’·‚³‚ğ’²®‚·‚é
+	// Spring Armã®é•·ã•ã‚’èª¿æ•´ã™ã‚‹
 	SpringArm->TargetArmLength = 450.0f;
 
-	// Pawn‚ÌControllerRotation‚ğg—p‚·‚é
+	// Pawnã®ControllerRotationã‚’ä½¿ç”¨ã™ã‚‹
 	SpringArm->bUsePawnControlRotation = true;
 
-	// Camera‚ÌLag‚ğ—LŒø‚É‚·‚é
+	// Cameraã®Lagã‚’æœ‰åŠ¹ã«ã™ã‚‹
 	SpringArm->bEnableCameraLag = true;
 
-	// Camera‚ğ’Ç‰Á‚·‚é
+	// Cameraã‚’è¿½åŠ ã™ã‚‹
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	Camera->SetupAttachment(SpringArm);
 
+	// ç‚ã®ä½ç½®å›ºå®šç”¨ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆï¼ˆRootã§ã¯ãªããƒ¯ãƒ¼ãƒ«ãƒ‰ã«è¿½å¾“ï¼‰
+	FireSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("FireSpawnPoint"));
+	FireSpawnPoint->SetupAttachment(RootComponent);
+
+	// FireCollision ã‚’ FireSpawnPoint ã«ã‚¢ã‚¿ãƒƒãƒ
 	FireCollision = CreateDefaultSubobject<USphereComponent>(TEXT("FireCollision"));
-	FireCollision->SetupAttachment(Sphere);
-	FireCollision->SetSphereRadius(100.f); // ‰Š‚Ì”ÍˆÍ‚É‡‚í‚¹‚é
-	FireCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision); // ‰Šú‚Í–³Œø
+	FireCollision->SetupAttachment(FireSpawnPoint);
+	FireCollision->InitSphereRadius(100.f);
+	FireCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	FireCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
 
-	// MotionBlur‚ğƒIƒt‚É‚·‚é
+	// MotionBlurã‚’ã‚ªãƒ•ã«ã™ã‚‹
 	Camera->PostProcessSettings.MotionBlurAmount = 0.0f;
 
-	// Input Mapping ContextuIM_Controlsv‚ğ“Ç‚İ‚Ş
+	// Input Mapping Contextã€ŒIM_Controlsã€ã‚’èª­ã¿è¾¼ã‚€
 	DefaultMappingContext = LoadObject<UInputMappingContext>(nullptr, TEXT("/Game/Input/PlayerInput"));
 
-	// Input ActionuIA_Controlv‚ğ“Ç‚İ‚Ş
+	// Input Actionã€ŒIA_Controlã€ã‚’èª­ã¿è¾¼ã‚€
 	ControlAction = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/Control"));
 
-	// Input ActionuIA_Lookv‚ğ“Ç‚İ‚Ş
+	// Input Actionã€ŒIA_Lookã€ã‚’èª­ã¿è¾¼ã‚€
 	LookAction = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/Look"));
 
-	// Input ActionuIA_Jumpv‚ğ“Ç‚İ‚Ş
+	// Input Actionã€ŒIA_Jumpã€ã‚’èª­ã¿è¾¼ã‚€
 	JumpAction = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/Jump"));
 
-	// Input ActionuIA_Boostv‚ğ“Ç‚İ‚Ş
+	// Input Actionã€ŒIA_Boostã€ã‚’èª­ã¿è¾¼ã‚€
 	BoostAction = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/Boost"));
 
-	// ƒfƒtƒHƒ‹ƒg’l
+	// ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå€¤
 	bIsGoalReached = false;
 
 }
@@ -101,14 +110,58 @@ void AEggPlayer::BeginPlay()
 		}
 	}
 
-	FireCollision->OnComponentBeginOverlap.AddDynamic(this, &AEggPlayer::OnFireOverlap);
+	if (FireCollision)
+	{
+		FireCollision->OnComponentBeginOverlap.AddDynamic(this, &AEggPlayer::OnFireOverlap);
+	}
 
+}
+
+// Tické–¢æ•°ã§ä½ç½®ã ã‘ã‚’åŒæœŸï¼ˆå›è»¢ã¯ç„¡è¦–ï¼‰
+void AEggPlayer::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	// æ¥åœ°åˆ¤å®š
+	FVector Start = Sphere->GetComponentLocation();
+	FVector End = Start - FVector(0, 0, GroundCheckDistance);
+
+	FHitResult Hit;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
+
+	if (bHit)
+	{
+		bIsGrounded = true;
+		// ãƒã‚¦ãƒ³ãƒ‰é˜²æ­¢
+		FVector Vel = Sphere->GetPhysicsLinearVelocity();
+		if (Vel.Z < 0) Vel.Z = 0;
+		Sphere->SetPhysicsLinearVelocity(Vel);
+	}
+	else
+	{
+		bIsGrounded = false;
+	}
 }
 
 void AEggPlayer::NotifyHit(class UPrimitiveComponent* MyComp, class AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
 {
 	Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
-	CanJump = true;
+
+	
+	// æ¥åœ°åˆ¤å®šï¼šZæ–¹å‘ãŒã»ã¼ä¸Šå‘ãã®é¢ã«æ¥è§¦ã—ãŸå ´åˆ
+	if (HitNormal.Z > 0.7f)
+	{
+		bIsGrounded = true;   // åœ°é¢ã«ç€åœ°ã—ãŸ
+		CanJump = true;       // ã‚¸ãƒ£ãƒ³ãƒ—å¯èƒ½
+
+		// ãƒã‚¦ãƒ³ãƒ‰é˜²æ­¢
+		FVector Vel = Sphere->GetPhysicsLinearVelocity();
+		Vel.Z = 0.0f;
+		Sphere->SetPhysicsLinearVelocity(Vel);
+	}
 }
 
 // Called to bind functionality to input
@@ -121,36 +174,38 @@ void AEggPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent)) {
 
-		// ControlBall‚ÆIA_Control‚ÌTriggered‚ğBind‚·‚é
+		// ControlBallã¨IA_Controlã®Triggeredã‚’Bindã™ã‚‹
 		EnhancedInputComponent->BindAction(ControlAction, ETriggerEvent::Triggered, this, &AEggPlayer::ControlBall);
 
-		// Look‚ÆIA_Look‚ÌTriggered‚ğBind‚·‚é
+		// Lookã¨IA_Lookã®Triggeredã‚’Bindã™ã‚‹
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AEggPlayer::Look);
 
-		// Jump‚ÆIA_Jump‚ÌTriggered‚ğBind‚·‚é
+		// Jumpã¨IA_Jumpã®Triggeredã‚’Bindã™ã‚‹
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &AEggPlayer::Jump);
 
-		EnhancedInputComponent->BindAction(BoostAction, ETriggerEvent::Triggered, this, &AEggPlayer::Boost);
+		EnhancedInputComponent->BindAction(BoostAction, ETriggerEvent::Started, this, &AEggPlayer::Boost);
+
+
 	}
 }
 
 void AEggPlayer::OnGoalReached()
 {
-	if (bIsGoalReached) return; // “ñd”»’è–h~
+	if (bIsGoalReached) return; // äºŒé‡åˆ¤å®šé˜²æ­¢
 	bIsGoalReached = true;
 
-	// “®‚«‚ğ~‚ß‚é
+	// å‹•ãã‚’æ­¢ã‚ã‚‹
 	Sphere->SetPhysicsLinearVelocity(FVector::ZeroVector);
 	Sphere->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
-	Sphere->SetSimulatePhysics(false); // © Š®‘S’â~I
+	Sphere->SetSimulatePhysics(false); // â† å®Œå…¨åœæ­¢ï¼
 
-	// gCLEARhƒeƒLƒXƒg‚ğ•\¦
+	// â€œCLEARâ€ãƒ†ã‚­ã‚¹ãƒˆã‚’è¡¨ç¤º
 	if (APlayerController* PC = Cast<APlayerController>(GetController()))
 	{
 		PC->SetShowMouseCursor(true);
 		PC->SetInputMode(FInputModeUIOnly());
 
-		// ƒVƒ“ƒvƒ‹‚ÉHUD•\¦
+		// ã‚·ãƒ³ãƒ—ãƒ«ã«HUDè¡¨ç¤º
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("CLEAR!"));
 	}
 }
@@ -159,20 +214,20 @@ void AEggPlayer::OnGoalReached()
 
 void AEggPlayer::ControlBall(const FInputActionValue& Value)
 {
-	// input‚ÌValue‚ÍVector2D‚É•ÏŠ·‚Å‚«‚é
+	// inputã®Valueã¯Vector2Dã«å¤‰æ›ã§ãã‚‹
 	FVector2D V = Value.Get<FVector2D>();
 
-	// Vector‚ğŒvZ‚·‚é
+	// Vectorã‚’è¨ˆç®—ã™ã‚‹
 	FVector ForceVector = FVector(V.Y, V.X, 0.0f) * Speed;
 
-	// Sphere‚É—Í‚ğ‰Á‚¦‚é
+	// Sphereã«åŠ›ã‚’åŠ ãˆã‚‹
 	Sphere->AddForce(ForceVector, TEXT("NONE"), true);
 }
 
 
 void AEggPlayer::Look(const FInputActionValue& Value)
 {
-	// input‚ÌValue‚ÍVector2D‚É•ÏŠ·‚Å‚«‚é
+	// inputã®Valueã¯Vector2Dã«å¤‰æ›ã§ãã‚‹
 	const FVector2D V = Value.Get<FVector2D>();
 
 	if (Controller != nullptr)
@@ -181,24 +236,33 @@ void AEggPlayer::Look(const FInputActionValue& Value)
 		AddControllerYawInput(V.X);
 		AddControllerPitchInput(-V.Y);
 
-		// Pawn‚ª‚Á‚Ä‚¢‚éControl‚ÌŠp“x‚ğæ“¾‚·‚é
+		// PawnãŒæŒã£ã¦ã„ã‚‹Controlã®è§’åº¦ã‚’å–å¾—ã™ã‚‹
 		FRotator ControlRotate = GetControlRotation();
 
-		// controller‚ÌPitch‚ÌŠp“x‚ğ§ŒÀ‚·‚é
+		// controllerã®Pitchã®è§’åº¦ã‚’åˆ¶é™ã™ã‚‹
 		//double LimitPitchAngle = FMath::ClampAngle(ControlRotate.Pitch, -40.0f, -10.0f);
 
-		// PlayerController‚ÌŠp“x‚ğİ’è‚·‚é
+		// PlayerControllerã®è§’åº¦ã‚’è¨­å®šã™ã‚‹
 		//UGameplayStatics::GetPlayerController(this, 0)->SetControlRotation(FRotator(LimitPitchAngle, ControlRotate.Yaw, 0.0f));
 	}
 }
 
 void AEggPlayer::Jump(const FInputActionValue& Value)
 {
-	// input‚ÌValue‚Íbool‚É•ÏŠ·‚Å‚«‚é
-	if (const bool V = Value.Get<bool>() && CanJump)
+	bool bPressed = Value.Get<bool>();
+
+	if (bPressed && bIsGrounded)
 	{
-		Sphere->AddImpulse(FVector(0.0f, 0.0f, JumpImpulse), TEXT("None"), true);
-		CanJump = false;
+		// Zæ–¹å‘ã®é€Ÿåº¦ã‚’ãƒªã‚»ãƒƒãƒˆ
+		FVector Vel = Sphere->GetPhysicsLinearVelocity();
+		Vel.Z = 0.0f;
+		Sphere->SetPhysicsLinearVelocity(Vel);
+
+		// ã‚¸ãƒ£ãƒ³ãƒ—
+		Sphere->AddImpulse(FVector(0.0f, 0.0f, JumpImpulse), NAME_None, true);
+
+		// ç©ºä¸­ãƒ•ãƒ©ã‚°
+		bIsGrounded = false;
 	}
 }
 
@@ -206,7 +270,7 @@ void AEggPlayer::OnFireOverlap(UPrimitiveComponent* OverlappedComp, AActor* Othe
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
 	bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (OtherActor && OtherActor != this)
+	if (OtherActor && OtherActor != this && OtherActor->ActorHasTag("Destructible"))
 	{
 		OtherActor->Destroy();
 	}
@@ -214,28 +278,63 @@ void AEggPlayer::OnFireOverlap(UPrimitiveComponent* OverlappedComp, AActor* Othe
 
 void AEggPlayer::Boost(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Boost Triggered!"));
+	if (bIsBoosting || !BoostEffect) return;
 
-	if (!BoostEffect || !Sphere) return;
+	bIsBoosting = true;
 
-	UNiagaraFunctionLibrary::SpawnSystemAttached(
-		BoostEffect,
-		Sphere,
-		NAME_None,
-		FVector(0.0f, 0.0f, 200.0f),
-		FRotator::ZeroRotator,
-		EAttachLocation::KeepRelativeOffset,
-		true
-	);
+	// ğŸ”¥ SpawnSystemAttached ã®æˆ»ã‚Šå€¤ã‚’ä¿å­˜ï¼
+	//ActiveBoostEffect = UNiagaraFunctionLibrary::SpawnSystemAttached(
+	//	BoostEffect,
+	//	Sphere,
+	//	NAME_None,
+	//	FVector(0.0f,0.0f,47.0f),
+	//	FRotator::ZeroRotator,
+	//	EAttachLocation::KeepRelativeOffset,
+	//	true
+	//);
 
-	// ‰Š‚Ì”»’è‚ğˆê“I‚É—LŒø‰»
+	if (ActiveBoostEffect)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ğŸ”¥ Boost Start!"));
+	}
+
+	// ğŸ”¥ å½“ãŸã‚Šåˆ¤å®šã‚’æœ‰åŠ¹åŒ–
+	FireCollision->SetSphereRadius(300.f); // å½“ãŸã‚Šåˆ¤å®šã‚’åºƒã’ã‚‹
 	FireCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
-	// 1•bŒã‚É–³Œø‰»
-	FTimerHandle TimerHandle;
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
-		{
-			FireCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		}, 1.0f, false);
+	// 3ç§’å¾Œã«ç‚ã‚’æ­¢ã‚ã‚‹
+	GetWorld()->GetTimerManager().SetTimer(
+		BoostTimerHandle,
+		this,
+		&AEggPlayer::StopBoost,
+		3.0f,
+		false
+	);
+
+	if (BoostEffect)
+	{
+		ActiveBoostEffect = NewObject<UNiagaraComponent>(this, UNiagaraComponent::StaticClass());
+		ActiveBoostEffect->SetAsset(BoostEffect);
+		ActiveBoostEffect->AttachToComponent(FireSpawnPoint, FAttachmentTransformRules::KeepRelativeTransform);
+		ActiveBoostEffect->SetRelativeLocation(FVector(50, 0, 50)); // ä½ç½®
+		ActiveBoostEffect->SetWorldScale3D(FVector(10.0f));        // â† ã‚µã‚¤ã‚ºå¤‰æ›´
+		ActiveBoostEffect->RegisterComponent();
+		ActiveBoostEffect->Activate();
+	}
+}
+
+void AEggPlayer::StopBoost()
+{
+	if (!bIsBoosting) return;
+	bIsBoosting = false;
+
+	UE_LOG(LogTemp, Warning, TEXT("ğŸ”¥ Boost stopped!"));
+
+	if (ActiveBoostEffect)
+	{
+		ActiveBoostEffect->Deactivate();
+		ActiveBoostEffect->DestroyComponent(); // ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’å‰Šé™¤ã—ã¦å®‰å…¨ã«æ¶ˆã™
+		ActiveBoostEffect = nullptr;
+	}
 }
 

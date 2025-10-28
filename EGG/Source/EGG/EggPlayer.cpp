@@ -1,4 +1,5 @@
 ﻿#include "EggPlayer.h"
+#include "Components/SphereComponent.h"
 
 #include "Blueprint/UserWidget.h"
 #include "NiagaraFunctionLibrary.h"
@@ -62,17 +63,6 @@ AEggPlayer::AEggPlayer()
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	Camera->SetupAttachment(SpringArm);
 
-	// 炎の位置固定用コンポーネント（Rootではなくワールドに追従）
-	FireSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("FireSpawnPoint"));
-	FireSpawnPoint->SetupAttachment(RootComponent);
-
-	// FireCollision を FireSpawnPoint にアタッチ
-	FireCollision = CreateDefaultSubobject<USphereComponent>(TEXT("FireCollision"));
-	FireCollision->SetupAttachment(FireSpawnPoint);
-	FireCollision->InitSphereRadius(100.f);
-	FireCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	FireCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
-
 	// MotionBlurをオフにする
 	Camera->PostProcessSettings.MotionBlurAmount = 0.0f;
 
@@ -90,6 +80,7 @@ AEggPlayer::AEggPlayer()
 
 	// Input Action「IA_Boost」を読み込む
 	BoostAction = LoadObject<UInputAction>(nullptr, TEXT("/Game/Input/Boost"));
+
 
 	// デフォルト値
 	bIsGoalReached = false;
@@ -109,18 +100,14 @@ void AEggPlayer::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
-
-	if (FireCollision)
-	{
-		FireCollision->OnComponentBeginOverlap.AddDynamic(this, &AEggPlayer::OnFireOverlap);
-	}
-
 }
 
 // Tick関数で位置だけを同期（回転は無視）
 void AEggPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (bIsGoalReached) return; // ← ゴール後は物理処理をスキップ
 
 	// 接地判定
 	FVector Start = Sphere->GetComponentLocation();
@@ -132,16 +119,27 @@ void AEggPlayer::Tick(float DeltaTime)
 
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
 
+	// Boostエフェクトの位置を更新
 	if (ActiveBoostEffect)
 	{
-		FVector BallLocation = Sphere->GetComponentLocation();
-		FVector FireOffset = FVector(0, 0, 47); // ボールの下に出す例
-		ActiveBoostEffect->SetWorldLocation(BallLocation + FireOffset);
+		ActiveBoostEffect->SetWorldLocation(Sphere->GetComponentLocation() + BoostOffset);
+		ActiveBoostEffect->SetWorldRotation(FRotator::ZeroRotator); // 回転固定
 	}
 
+	// Boost中なら上昇
+	if (bIsRising && Sphere)
+	{
+		FVector CurrentVelocity = Sphere->GetPhysicsLinearVelocity();
+		// Z方向に上昇速度を追加
+		CurrentVelocity.Z = BoostRiseSpeed;
+		Sphere->SetPhysicsLinearVelocity(CurrentVelocity);
+	}
+
+	// 接地判定
 	if (bHit)
 	{
 		bIsGrounded = true;
+
 		// バウンド防止
 		FVector Vel = Sphere->GetPhysicsLinearVelocity();
 		if (Vel.Z < 0) Vel.Z = 0;
@@ -190,9 +188,7 @@ void AEggPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 		// JumpとIA_JumpのTriggeredをBindする
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &AEggPlayer::Jump);
 
-		EnhancedInputComponent->BindAction(BoostAction, ETriggerEvent::Started, this, &AEggPlayer::Boost);
-
-
+		EnhancedInputComponent->BindAction(BoostAction, ETriggerEvent::Triggered, this, &AEggPlayer::Boost);
 	}
 }
 
@@ -221,6 +217,8 @@ void AEggPlayer::OnGoalReached()
 
 void AEggPlayer::ControlBall(const FInputActionValue& Value)
 {
+	if (bIsGoalReached) return;
+
 	FVector2D MoveValue = Value.Get<FVector2D>();
 	if (!Controller || MoveValue.IsNearlyZero()) return;
 
@@ -266,6 +264,9 @@ void AEggPlayer::ControlBall(const FInputActionValue& Value)
 		float ControlStrength = bIsGrounded ? 1.0f : AirControlFactor;
 		Sphere->AddForce(MoveDir * Speed * Sphere->GetMass() * ControlStrength);
 	}
+
+
+
 }
 
 
@@ -310,75 +311,43 @@ void AEggPlayer::Jump(const FInputActionValue& Value)
 	}
 }
 
-void AEggPlayer::OnFireOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-	bool bFromSweep, const FHitResult& SweepResult)
+void AEggPlayer::Boost()
 {
-	if (OtherActor && OtherActor != this && OtherActor->ActorHasTag("Destructible"))
-	{
-		OtherActor->Destroy();
-	}
-}
+	if (!bCanBoost || bIsBoostOnCooldown || !BoostEffect) return;
 
-void AEggPlayer::Boost(const FInputActionValue& Value)
-{
-	if (bIsBoosting || !BoostEffect) return;
+	bCanBoost = false;
+	bIsRising = true; // 上昇開始
 
-	bIsBoosting = true;
-
-	// 🔥 SpawnSystemAttached の戻り値を保存！
-	//ActiveBoostEffect = UNiagaraFunctionLibrary::SpawnSystemAttached(
-	//	BoostEffect,
-	//	Sphere,
-	//	NAME_None,
-	//	FVector(0.0f,0.0f,47.0f),
-	//	FRotator::ZeroRotator,
-	//	EAttachLocation::KeepRelativeOffset,
-	//	true
-	//);
-
-	if (ActiveBoostEffect)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("🔥 Boost Start!"));
-	}
-
-	// 🔥 当たり判定を有効化
-	FireCollision->SetSphereRadius(300.f); // 当たり判定を広げる
-	FireCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-
-	// 3秒後に炎を止める
-	GetWorld()->GetTimerManager().SetTimer(
-		BoostTimerHandle,
-		this,
-		&AEggPlayer::StopBoost,
-		3.0f,
-		false
+	// NiagaraをSpawn（アタッチせずにワールドに置く）
+	ActiveBoostEffect = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		GetWorld(),
+		BoostEffect,
+		Sphere->GetComponentLocation() + BoostOffset,
+		FRotator::ZeroRotator,
+		FVector(1.0f),
+		true, true, ENCPoolMethod::AutoRelease
 	);
 
-	if (BoostEffect)
-	{
-		ActiveBoostEffect = NewObject<UNiagaraComponent>(this, UNiagaraComponent::StaticClass());
-		ActiveBoostEffect->SetAsset(BoostEffect);
-		ActiveBoostEffect->AttachToComponent(FireSpawnPoint, FAttachmentTransformRules::KeepRelativeTransform);
-		ActiveBoostEffect->SetRelativeLocation(FVector(50, 0, 50)); // 位置
-		ActiveBoostEffect->SetWorldScale3D(FVector(10.0f));        // ← サイズ変更
-		ActiveBoostEffect->RegisterComponent();
-		ActiveBoostEffect->Activate();
-	}
+	// 3秒後に終了
+	GetWorld()->GetTimerManager().SetTimer(BoostTimerHandle, this, &AEggPlayer::EndBoost, 3.0f, false);
 }
 
-void AEggPlayer::StopBoost()
+void AEggPlayer::EndBoost()
 {
-	if (!bIsBoosting) return;
-	bIsBoosting = false;
-
-	UE_LOG(LogTemp, Warning, TEXT("🔥 Boost stopped!"));
-
 	if (ActiveBoostEffect)
 	{
-		ActiveBoostEffect->Deactivate();
-		ActiveBoostEffect->DestroyComponent(); // コンポーネントを削除して安全に消す
+		ActiveBoostEffect->DestroyComponent();
 		ActiveBoostEffect = nullptr;
 	}
+
+	bIsRising = false; // 上昇停止
+	bIsBoostOnCooldown = true; // クールダウン開始
+
+	GetWorld()->GetTimerManager().SetTimer(BoostCooldownTimerHandle, [this]()
+		{
+			bIsBoostOnCooldown = false;
+			bCanBoost = true;
+			UE_LOG(LogTemp, Warning, TEXT("Boost cooldown ended"));
+		}, BoostCooldownTime, false);
 }
 

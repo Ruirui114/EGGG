@@ -45,8 +45,6 @@ public:
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-
-
 private:
 	/** キャラクターの球体メッシュ */
 	UPROPERTY(VisibleAnywhere, Category = Character)
@@ -75,53 +73,51 @@ private:
 	UPROPERTY(EditAnywhere, Category = Input)
 	UInputAction* BoostAction;
 
-	/** 炎の発生位置を固定するためのノード */
-	UPROPERTY(VisibleAnywhere, Category = Effect)
-	USceneComponent* FireSpawnPoint;
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float GroundCheckDistance = 50.0f; // 足元からのチェック距離
 
-	/** 炎の当たり判定（Sphere） */
-	UPROPERTY(VisibleAnywhere, Category = Effect)
-	USphereComponent* FireCollision;
+	/** Boost用フラグ */
+	bool bCanBoost = true;
 
-	/** 炎エフェクト（Niagara） */
-	UPROPERTY(EditAnywhere, Category = Effect)
+	/** Niagara エフェクト */
+	UPROPERTY(EditAnywhere, Category = "Effects")
 	UNiagaraSystem* BoostEffect;
 
-	/** 実際に出しているエフェクトの参照 */
+	/** 再生中の Niagara Component */
 	UPROPERTY()
 	UNiagaraComponent* ActiveBoostEffect = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = "Movement")
-	float GroundCheckDistance = 50.0f; // 足元からのチェック距離
+	UPROPERTY(EditAnywhere, Category = "Boost")
+	float BoostCooldownTime = 5.0f;  // クールダウン時間（秒）
+
+	FVector BoostOffset = FVector(0, 0, 50); // プレイヤーの上に表示
+
+	/** タイマー */
+	FTimerHandle BoostTimerHandle;
+	FTimerHandle BoostCooldownTimerHandle;
+	/** Boost処理 */
+	void Boost();
+
+	/** Boost終了処理 */
+	void EndBoost();
 
 	// 地面に触れているかどうか
 	bool bIsGrounded = false;
 
-	/** 炎が出てる間は true */
-	bool bIsBoosting = false;
-
-	/** 3秒後に消すためのタイマー */
-	FTimerHandle BoostTimerHandle;
-
-	/** 炎が当たったときの処理 */
-	UFUNCTION()
-	void OnFireOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
-		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-		bool bFromSweep, const FHitResult& SweepResult);
-
-	/** 炎を出す関数 */
-	void Boost(const FInputActionValue& Value);
-
-	/** 炎を止める関数 */
-	void StopBoost();
-
 	/** ゴール関連 */
 	bool bIsGoalReached = false;
+
+	// Boost中に上昇中かどうか
+	bool bIsRising = false;
+
+	bool bIsBoostOnCooldown = false; // クールダウン中
 
 	/** 各種設定値 */
 	float Speed = 300.0f;
 	float Health = 100.0f;
 	float JumpImpulse = 1000.0f;
+	// 上昇スピード
+	float BoostRiseSpeed = 100.f; // 1秒間に30cm上がる
 	/** 空中での操作の強さ（0.0〜1.0） */
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float AirControlFactor = 0.7f;

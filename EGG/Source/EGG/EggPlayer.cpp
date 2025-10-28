@@ -132,6 +132,13 @@ void AEggPlayer::Tick(float DeltaTime)
 
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
 
+	if (ActiveBoostEffect)
+	{
+		FVector BallLocation = Sphere->GetComponentLocation();
+		FVector FireOffset = FVector(0, 0, 47); // ボールの下に出す例
+		ActiveBoostEffect->SetWorldLocation(BallLocation + FireOffset);
+	}
+
 	if (bHit)
 	{
 		bIsGrounded = true;
@@ -214,14 +221,51 @@ void AEggPlayer::OnGoalReached()
 
 void AEggPlayer::ControlBall(const FInputActionValue& Value)
 {
-	// inputのValueはVector2Dに変換できる
-	FVector2D V = Value.Get<FVector2D>();
+	FVector2D MoveValue = Value.Get<FVector2D>();
+	if (!Controller || MoveValue.IsNearlyZero()) return;
 
-	// Vectorを計算する
-	FVector ForceVector = FVector(V.Y, V.X, 0.0f) * Speed;
+	// カメラ方向に合わせた移動方向を計算
+	FRotator CameraRot = Camera->GetComponentRotation();
+	FVector Forward = FRotationMatrix(CameraRot).GetScaledAxis(EAxis::X);
+	FVector Right = FRotationMatrix(CameraRot).GetScaledAxis(EAxis::Y);
 
-	// Sphereに力を加える
-	Sphere->AddForce(ForceVector, TEXT("NONE"), true);
+	Forward.Z = 0.0f;
+	Right.Z = 0.0f;
+	Forward.Normalize();
+	Right.Normalize();
+
+	FVector MoveDir = (Forward * MoveValue.Y + Right * MoveValue.X).GetSafeNormal();
+
+	FVector CurrentVel = Sphere->GetPhysicsLinearVelocity();
+	FVector FlatVel = FVector(CurrentVel.X, CurrentVel.Y, 0.0f);
+
+	// --- 逆方向入力時の減速処理 ---
+	if (!FlatVel.IsNearlyZero())
+	{
+		float Dot = FVector::DotProduct(FlatVel.GetSafeNormal(), MoveDir);
+
+		if (Dot < -0.5f) // ←真逆に近い方向を押したら
+		{
+			// 💨 徐々に減速（0.85で減速率を調整）
+			FVector NewVel = FlatVel * 0.85f;
+
+			// 少しブレーキをかけるが完全には止めない
+			Sphere->SetPhysicsLinearVelocity(FVector(NewVel.X, NewVel.Y, CurrentVel.Z));
+
+			// ほんの少しだけ逆方向に力を加えて反転を始める
+			float ControlStrength = bIsGrounded ? 0.5f : AirControlFactor * 0.5f;
+			Sphere->AddForce(MoveDir * Speed * Sphere->GetMass() * ControlStrength);
+
+			return; // このフレームではこれで終わり
+		}
+	}
+
+	// --- 通常の移動処理 ---
+	if (FlatVel.Size() < 2000.0f)
+	{
+		float ControlStrength = bIsGrounded ? 1.0f : AirControlFactor;
+		Sphere->AddForce(MoveDir * Speed * Sphere->GetMass() * ControlStrength);
+	}
 }
 
 

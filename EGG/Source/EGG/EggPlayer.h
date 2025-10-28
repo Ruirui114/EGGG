@@ -119,8 +119,11 @@ private:
 	bool bIsGoalReached = false;
 
 	/** 各種設定値 */
-	float Speed = 200.0f;
+	float Speed = 300.0f;
 	float Health = 100.0f;
 	float JumpImpulse = 1000.0f;
+	/** 空中での操作の強さ（0.0〜1.0） */
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float AirControlFactor = 0.7f;
 	bool CanJump = false;
 };

@@ -317,16 +317,22 @@ void AEggPlayer::Boost()
 
 	bCanBoost = false;
 	bIsRising = true; // 上昇開始
-
+	
 	// NiagaraをSpawn（アタッチせずにワールドに置く）
 	ActiveBoostEffect = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 		GetWorld(),
 		BoostEffect,
 		Sphere->GetComponentLocation() + BoostOffset,
-		FRotator::ZeroRotator,
+		FRotator(0.0f, 0.0f, 100.0f),
 		FVector(1.0f),
 		true, true, ENCPoolMethod::AutoRelease
 	);
+	//GetWorldTimerManager().SetTimer(
+	//	BoostTimerHandle,
+	//	[this]() { bIsBoostActive = false; },
+	//	3.0f, // 3秒後にブースト解除
+	//	false
+	//);
 
 	// 3秒後に終了
 	GetWorld()->GetTimerManager().SetTimer(BoostTimerHandle, this, &AEggPlayer::EndBoost, 3.0f, false);

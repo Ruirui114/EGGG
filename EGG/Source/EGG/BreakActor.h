@@ -1,4 +1,5 @@
 #pragma once
+
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "BreakActor.generated.h"
@@ -17,6 +18,9 @@ protected:
     UPROPERTY(VisibleAnywhere)
     UStaticMeshComponent* Mesh;
 
+    UPROPERTY(VisibleAnywhere)
+    class UBoxComponent* OverlapBox;
+
     UPROPERTY(EditAnywhere)
     float BreakDelay = 1.0f;
 
@@ -24,13 +28,13 @@ protected:
     float RespawnDelay = 3.0f;
 
     bool bIsBroken = false;
+
     FTimerHandle BreakTimerHandle;
     FTimerHandle RespawnTimerHandle;
 
     UFUNCTION()
-    void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
-        UPrimitiveComponent* OtherComp, FVector NormalImpulse,
-        const FHitResult& Hit);
+    void OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
     void BreakPlatform();
     void RespawnPlatform();

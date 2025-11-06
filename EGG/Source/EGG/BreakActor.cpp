@@ -3,78 +3,71 @@
 #include "Components/BoxComponent.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
+#include "EggPlayer.h" 
 
 ABreakActor::ABreakActor()
 {
     PrimaryActorTick.bCanEverTick = false;
 
-    // ✅ Meshをルートにする（乗る部分）
-    Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-    RootComponent = Mesh;
+    // 当たり判定ボックス
+    BoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent"));
+    RootComponent = BoxComponent;
+    BoxComponent->SetBoxExtent(FVector(50.f, 50.f, 10.f));
+    BoxComponent->SetCollisionProfileName(TEXT("Trigger"));
 
-    Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-    Mesh->SetCollisionProfileName(TEXT("BlockAllDynamic"));
-    Mesh->SetGenerateOverlapEvents(false); // Block専用
-    Mesh->SetSimulatePhysics(false);
+    // ✅ メッシュを作ってボックスの上に置く
+    MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+    MeshComponent->SetupAttachment(BoxComponent);
+    MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    MeshComponent->SetGenerateOverlapEvents(false);
 
-    // ✅ Overlap用の透明Box（少し大きめに）
-    OverlapBox = CreateDefaultSubobject<UBoxComponent>(TEXT("OverlapBox"));
-    OverlapBox->SetupAttachment(Mesh);
-    OverlapBox->SetBoxExtent(FVector(55.f, 55.f, 15.f));
-    OverlapBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-    OverlapBox->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
-    OverlapBox->SetGenerateOverlapEvents(true);
+    // オーバーラップ検出有効
+    BoxComponent->SetGenerateOverlapEvents(true);
 }
 
 void ABreakActor::BeginPlay()
 {
     Super::BeginPlay();
 
-    OverlapBox->OnComponentBeginOverlap.AddDynamic(this, &ABreakActor::OnOverlapBegin);
+    // オーバーラップ開始時のイベント登録
+    BoxComponent->OnComponentBeginOverlap.AddDynamic(this, &ABreakActor::OnOverlapBegin);
+
 }
 
 void ABreakActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-    UE_LOG(LogTemp, Warning, TEXT("Overlap detected with %s"), OtherActor ? *OtherActor->GetName() : TEXT("None"));
+    if (bIsBroken) return;
 
-    if (!bIsBroken && OtherActor && OtherActor->ActorHasTag(TEXT("Player")))
+    // プレイヤーが乗ったか確認
+    if (OtherActor && OtherActor->IsA(AEggPlayer::StaticClass()))
     {
-        UE_LOG(LogTemp, Warning, TEXT("Player overlapped! Scheduling break..."));
-
-        // タイマー設定（1秒後に壊す）
-        GetWorldTimerManager().SetTimer(
-            BreakTimerHandle,
-            FTimerDelegate::CreateLambda([this]()
-                {
-                    UE_LOG(LogTemp, Warning, TEXT("BreakPlatform timer triggered"));
-                    BreakPlatform();
-                }),
-            BreakDelay,
-            false
-        );
+        // 1秒後に壊す
+        GetWorldTimerManager().SetTimer(DestroyTimerHandle, this, &ABreakActor::BreakPlatform, 1.0f, false);
     }
 }
 
 void ABreakActor::BreakPlatform()
 {
     if (bIsBroken) return;
+
     bIsBroken = true;
 
-    UE_LOG(LogTemp, Warning, TEXT("BreakPlatform called!"));
+    // ✅ 非表示・当たり判定OFFにする
+    MeshComponent->SetVisibility(false);
+    MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    BoxComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    Mesh->SetVisibility(false);
-    Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    OverlapBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
+    // 3秒後（RespawnDelay）に復活
     GetWorldTimerManager().SetTimer(RespawnTimerHandle, this, &ABreakActor::RespawnPlatform, RespawnDelay, false);
 }
 
 void ABreakActor::RespawnPlatform()
 {
-    bIsBroken = false;
+    // ✅ 表示・当たり判定ONに戻す
+    MeshComponent->SetVisibility(true);
+    MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    BoxComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
-    Mesh->SetVisibility(true);
-    Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-    OverlapBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    bIsBroken = false;
 }

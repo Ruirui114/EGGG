@@ -1,6 +1,7 @@
-#include "GoalActor.h"
+ï»¿#include "GoalActor.h"
 #include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Blueprint/UserWidget.h"
 #include "EggPlayer.h"
 
 AGoalActor::AGoalActor()
@@ -23,9 +24,19 @@ void AGoalActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* Oth
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
 	bool bFromSweep, const FHitResult& SweepResult)
 {
-	// AEggPlayer‚ÆÚG‚µ‚½‚ç
+	// AEggPlayerã¨æ¥è§¦ã—ãŸã‚‰
 	if (AEggPlayer* Player = Cast<AEggPlayer>(OtherActor))
 	{
-		Player->OnGoalReached(); // © ƒvƒŒƒCƒ„[‚É’m‚ç‚¹‚é
+		Player->OnGoalReached(); // â† ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã«çŸ¥ã‚‰ã›ã‚‹
+
+		// âœ… ã“ã“ã§ã€ŒCLEARã€UIã‚’è¡¨ç¤º
+		if (ClearWidgetClass)
+		{
+			UUserWidget* ClearWidget = CreateWidget<UUserWidget>(GetWorld(), ClearWidgetClass);
+			if (ClearWidget)
+			{
+				ClearWidget->AddToViewport();
+			}
+		}
 	}
 }

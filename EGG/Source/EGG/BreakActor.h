@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -15,27 +15,36 @@ public:
 protected:
     virtual void BeginPlay() override;
 
-    UPROPERTY(VisibleAnywhere)
-    UStaticMeshComponent* Mesh;
+    // ✅ エディターで設定可能にする
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    class UBoxComponent* BoxComponent;
 
-    UPROPERTY(VisibleAnywhere)
-    class UBoxComponent* OverlapBox;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    class UStaticMeshComponent* MeshComponent;
 
-    UPROPERTY(EditAnywhere)
+    // 🔹壊れるまでの時間（Blueprintで調整可能）
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Break")
     float BreakDelay = 1.0f;
 
-    UPROPERTY(EditAnywhere)
+    // 🔹復活までの時間（Blueprintで調整可能）
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Break")
     float RespawnDelay = 3.0f;
 
+    // 🔹状態管理
     bool bIsBroken = false;
 
-    FTimerHandle BreakTimerHandle;
-    FTimerHandle RespawnTimerHandle;
-
+    // 🔹 オーバーラップ判定
     UFUNCTION()
     void OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
-        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+        const FHitResult& SweepResult);
+
+    // 🔹 壊す関数（BlueprintCallableにしてもOK）
+    UFUNCTION(BlueprintCallable, Category = "Platform")
 
     void BreakPlatform();
     void RespawnPlatform();
+
+    FTimerHandle DestroyTimerHandle;
+    FTimerHandle RespawnTimerHandle;
 };

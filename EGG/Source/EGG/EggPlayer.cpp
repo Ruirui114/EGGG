@@ -203,14 +203,14 @@ void AEggPlayer::OnGoalReached()
 	Sphere->SetSimulatePhysics(false); // ← 完全停止！
 
 	// “CLEAR”テキストを表示
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
-	{
-		PC->SetShowMouseCursor(true);
-		PC->SetInputMode(FInputModeUIOnly());
+	//if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	//{
+	//	PC->SetShowMouseCursor(true);
+	//	PC->SetInputMode(FInputModeUIOnly());
 
-		// シンプルにHUD表示
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("CLEAR!"));
-	}
+	//	// シンプルにHUD表示
+	//	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("CLEAR!"));
+	//}
 }
 
 

@@ -50,6 +50,9 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = Character)
 	UStaticMeshComponent* Sphere;
 
+	UPROPERTY(EditAnywhere, Category = "Player")
+	UStaticMesh* PlayerMesh;
+
 	/** カメラ関係 */
 	UPROPERTY(VisibleAnywhere, Category = Camera)
 	USpringArmComponent* SpringArm;

@@ -22,22 +22,12 @@ AEggPlayer::AEggPlayer()
 	Sphere = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Sphere"));
 	RootComponent = Sphere;
 
-	// StaticMeshをLaodしてStaticMeshComponentのStaticMeshに設定する
-	UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere"));
-
-	// StaticMeshをStaticMeshComponentに設定する
-	Sphere->SetStaticMesh(Mesh);
-
-	// MaterialをStaticMeshに設定する
+	// プレイヤー用のマテリアル（必要なら）
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial"));
-
-	// MaterialをStaticMeshComponentに設定する
 	Sphere->SetMaterial(0, Material);
 
-	// Simulate Physicsを有効にする
-	Sphere->SetSimulatePhysics(true);
-
-	// Hit Eventを有効にする
+	// 物理有効
+	//Sphere->SetSimulatePhysics(true);
 	Sphere->BodyInstance.bNotifyRigidBodyCollision = true;
 
 	
@@ -91,6 +81,11 @@ AEggPlayer::AEggPlayer()
 void AEggPlayer::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (PlayerMesh)
+	{
+		Sphere->SetStaticMesh(PlayerMesh);
+	}
 
 	//Add Input Mapping Context
 	if (const APlayerController* PlayerController = Cast<APlayerController>(Controller))

@@ -12,7 +12,7 @@ ABreakActor::ABreakActor()
     // 当たり判定ボックス
     BoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent"));
     RootComponent = BoxComponent;
-    BoxComponent->SetBoxExtent(FVector(50.f, 50.f, 10.f));
+    BoxComponent->SetBoxExtent(FVector(50.f, 50.f, 2.f));
     BoxComponent->SetCollisionProfileName(TEXT("Trigger"));
 
     // ✅ メッシュを作ってボックスの上に置く

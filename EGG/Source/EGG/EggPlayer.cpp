@@ -19,13 +19,15 @@ AEggPlayer::AEggPlayer()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	Sphere = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Sphere"));
+	Sphere = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Sphere_B29C5256"));
 	RootComponent = Sphere;
 
 	// プレイヤー用のマテリアル（必要なら）
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial"));
 	Sphere->SetMaterial(0, Material);
 
+	/*mSMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SMesh"));
+	mSMesh->SetupAttachment(Sphere);*/
 	// 物理有効
 	//Sphere->SetSimulatePhysics(true);
 	Sphere->BodyInstance.bNotifyRigidBodyCollision = true;

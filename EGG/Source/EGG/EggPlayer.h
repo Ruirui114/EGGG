@@ -24,6 +24,9 @@ class EGG_API AEggPlayer : public APawn
 public:
 	AEggPlayer();
 
+	//UPROPERTY(Category = "C_CODE", VisibleAnywhere)
+	//TObjectPtr <USkeletalMeshComponent> mSMesh;//スケルタルメッシュコンポーネント
+
 protected:
 	virtual void BeginPlay() override;
 
